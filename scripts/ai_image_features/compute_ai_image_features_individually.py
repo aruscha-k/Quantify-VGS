@@ -6,7 +6,7 @@ import logging
 from datetime import datetime
 
 import scripts.config as CONF
-from scripts.debug_helpers import print_surfaces_at_coordinates, print_surface_and_detections
+#from scripts.debug_helpers import print_surfaces_at_coordinates, print_surface_and_detections
 from scripts.ai_image_features.compute_ai_image_features_functions import *
 from scripts.ai_image_features.clean_house_nohouse import run_house_nohouse_inference
 
@@ -63,12 +63,12 @@ def calculate_image_features(df5: pd.DataFrame, detections_folder, prediction_co
         detections = detections_df[detections_df['class_name'].isin(class_names_to_process)]['polygon'].tolist() 
         
         # optional for debugging: draw surface and detections on wall
-        if show_plot:
-            class_names = detections_df['class_name'].tolist()
-            confidences = detections_df['confidence'].tolist()
-            img_path = os.path.join(image_folder, file_name +".jpg")
-            print_surface_and_detections(img_path, rectified_outside_surface_in_image, detections, class_names, confidences)
-            print("detections:", list(zip(detections_df['class_name'], detections_df['confidence'])))
+        # if show_plot:
+        #     class_names = detections_df['class_name'].tolist()
+        #     confidences = detections_df['confidence'].tolist()
+        #     img_path = os.path.join(image_folder, file_name +".jpg")
+        #     print_surface_and_detections(img_path, rectified_outside_surface_in_image, detections, class_names, confidences)
+        #     print("detections:", list(zip(detections_df['class_name'], detections_df['confidence'])))
                 
         wwr = calculate_wwr(detections, rectified_outside_surface_in_image)
         wwr_results.append(wwr)
