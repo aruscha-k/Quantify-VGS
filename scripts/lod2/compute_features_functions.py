@@ -39,9 +39,6 @@ def read_data(df1_filename, df2_filename):
         on="building_id",
         how="left"
     )
-    print(df2_walls_with_gs.columns)
-    print(df2_walls_with_gs.iloc[[1]])
-
     df2_walls_gs_gdf = make_geodataframe(df2_walls_with_gs.iloc[[1]], "ground_surface")
     
     return df2_walls_gs_gdf #df1_parts, df2_walls
