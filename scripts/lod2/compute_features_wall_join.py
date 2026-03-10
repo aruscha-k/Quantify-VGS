@@ -12,42 +12,6 @@ import logging
 logger = logging.getLogger(__name__)
 
 
-# def get_angle_0_to_180(vec1, vec2):
-#     '''
-#     Takes two vectors (2d or 3d) and computes the angle in degrees between both. Order of the vectors does not matter
-
-#     PARAMS:
-#     * vec1, vec2 (2d or 3d tuples): vectors between which the angle should be calculated
-#     '''
-#     vec1 = np.array(vec1)
-#     vec2 = np.array(vec2)
-    
-#     # Calculate the dot product
-#     dot_product = np.dot(vec1, vec2)
-    
-#     # Calculate the magnitudes of the vectors
-#     magnitude_a = np.linalg.norm(vec1)
-#     magnitude_b = np.linalg.norm(vec2)
-    
-#     # Calculate the cosine of the angle
-#     if magnitude_a * magnitude_b != 0:
-#         cos_theta = np.clip(dot_product / (magnitude_a * magnitude_b), -1, 1)
-#     else:  # if both magnitudes multiplied are 0, one of them needs to be 0 -> check this!
-#         print("vec1:", vec1)
-#         print("vec2:", vec2)
-#         print("Magnitude_a:", magnitude_a)
-#         print("Magnitude_b:", magnitude_b)
-#         return 0
-    
-#     # Calculate the angle in radians
-#     angle_radians = np.arccos(cos_theta)
-    
-#     # Convert the angle to degrees
-#     angle_degrees = np.degrees(angle_radians)
-    
-#     return angle_degrees
-
-
 # REFACTOR:
 def get_angle_0_to_180(vec1: Tuple[float, ...], vec2: Tuple[float, ...]) -> float:
     """
@@ -132,136 +96,125 @@ def common_edge(wall1_coordinates: List[Tuple[float, float, float]],
     return False
 
 
-# def check_for_id_in_to_join(wall_id, to_join, part_id):
-#     ''' 
-#     search through all walls of this part that are already being joined for wall_id.
-#     If it is already in there, return index in to_join
-
-#     PARAMS:
-#     * wall_id (str): which wall to search for
-#     * to_join (df): df with three columns: part_id, wall_id_list (walls that are already to join), new_id (for new, joined wall). Each row will be joined to one wall. Can have several rows per part_id
-#     * part_id (str): which part the wall is in (significantly speeds up the process to search for it)
-
-#     RETURNS:
-#     * whether the wall_id is already in any of the to_join rows 
-#     * indx_nr: index of the row it is in
-#     '''
-#     # filter to_join for only those rows concerning the given part_id
-#     to_join_for_this_part = to_join[to_join["part_id"] == part_id]
-#     # search in those for wall_id
-#     for indx_nr, row in to_join_for_this_part.iterrows():
-#         if wall_id in row["wall_id_list"]:
-#             return True, indx_nr
-        
-#     return False, 0
-
-
-
-# def find_walls_to_join(df):
-#     """_summary_
-
-#     Args:
-#         df (pd or gpd): needs columns: part_id, surface_coordinates, normalized_nv3d, wall_id
+# refactor
+# def find_walls_to_join_common_edge(df) -> pd.DataFrame:
 #     """
+#     Identify walls belonging to the same part that share an edge
+#     and have nearly identical normals (angle < 1°).
 
-#     grouped_by_part = df.groupby("part_id").agg(
-#         coordinates=('surface_coordinates', list), 
-#         normals = ("normalized_nv3d", list),
-#         wall_ids = ("wall_id", list)        
+#     df: pandas df or gdf, needs columns normal_vector_3d, surface_coordinates, wall_id
+#     """
+#     logger.info("Finding walls to join")
+#     def normalize_vector(v):
+#         v = np.array(v, dtype=float)
+#         norm = np.linalg.norm(v)
+#         return list(v / norm) if norm != 0 else [0.0, 0.0, 0.0]
+#     df = df.copy()
+#     df["normalized_nv3d"] = df["normal_vector_3d"].apply(normalize_vector)
+
+#     grouped = df.groupby("building_id").agg(
+#         coordinates=('surface_coordinates', list),
+#         normals=('normalized_nv3d', list),
+#         wall_ids=('wall_id', list)
 #     ).reset_index()
 
-#     # initialize df for which walls to join. For each pair or group of walls (all saved as list in wall_id_list) that fulfill the requirements of sharing an edge and having the same normal, save part_id and make up a new_id.
-#     to_join = pd.DataFrame({"part_id": [], "wall_id_list": [], "new_id": []})
+#     results = []
+#     new_id_counter = 0
 
-#     count = 0
-#     self_made_id_nr = 0
-#     for index, part in grouped_by_part.iterrows():
-#         # for each part, check always two walls and whether they fulfill the requirements for a join
-#         for x, normal_vec1 in enumerate(part["normals"]):
-#             for y, normal_vec2 in enumerate(part["normals"]):
-#                 if x < y:
-#                     # test whether the normal_vecs are very similar (angle < 1°) 
-#                     angle = get_angle_0_to_180(normal_vec1[0:2], normal_vec2[0:2])
-#                     if (angle < 1):
-#                         # test whether the walls have a common edge                          
-#                         if common_edge(part["coordinates"][x], part["coordinates"][y]):
-#                             count += 1
-#                             # include in df
-#                             # three main possibilities:
-#                             # 1. both walls are not in any wall_id_list tuple -> make new row with new id and everything
-#                             # 2. one of the walls already is -> add other wall_id to this wall_id_list tuple (no new row)
-#                             # 3. both walls already are -> join both lists: take the row where wall_x already is and add wall_y plus the other walls in the wall_id_list of wall_y, delete the row where wall_y was present
-#                             x_in_join, x_id_in_join = check_for_id_in_to_join(part["wall_ids"][x], to_join, part["part_id"])
-#                             y_in_join, y_id_in_join = check_for_id_in_to_join(part["wall_ids"][y], to_join, part["part_id"])
-#                             # 1. both walls are not in any wall_id_list tuple
-#                             if not x_in_join and not y_in_join:
-#                                 new_id = "combined_" + str(self_made_id_nr)
-#                                 self_made_id_nr += 1
-#                                 new_join = pd.DataFrame({
-#                                     "part_id": [part["part_id"]],
-#                                     "wall_id_list": [(part["wall_ids"][x], part["wall_ids"][y])], 
-#                                     "new_id": [new_id]
-#                                     })
-#                                 to_join = pd.concat((to_join, new_join)).reset_index(drop = True)
-#                             # 2. one of the walls already is
-#                             elif x_in_join and not y_in_join:
-#                                 wall_id_list_before = to_join.at[x_id_in_join, "wall_id_list"]
-#                                 wall_id_list_after = wall_id_list_before + (part["wall_ids"][y],)
-#                                 to_join.at[x_id_in_join, "wall_id_list"] = wall_id_list_after
-#                             elif y_in_join and not x_in_join:
-#                                 wall_id_list_before = to_join.at[y_id_in_join, "wall_id_list"]
-#                                 wall_id_list_after = wall_id_list_before + (part["wall_ids"][x],)
-#                                 to_join.at[y_id_in_join, "wall_id_list"] = wall_id_list_after
-#                             # 3. both walls already are
-#                             else:
-#                                 wall_id_list_before = to_join.at[x_id_in_join, "wall_id_list"]
-#                                 wall_id_list_after = wall_id_list_before + to_join.at[y_id_in_join, "wall_id_list"]
-#                                 to_join.at[x_id_in_join, "wall_id_list"] = wall_id_list_after
-#                                 # delete other row
-#                                 to_join = to_join.drop(index=y_id_in_join)
-                    
-#     to_join = to_join.reset_index(drop= True)
-#     print(count, "wall pairs can be joined") #162326
+#     for _, part in grouped.iterrows():
+#         building_id = part.building_id
+#         normals, coords, wall_ids = part.normals, part.coordinates, part.wall_ids
+#         joins = []  # list of tuples of wall_ids to join
+
+#         # Compare each unique pair once
+#         for (i, j) in combinations(range(len(normals)), 2):
+#             if get_angle_0_to_180(normals[i][:2], normals[j][:2]) < 1:
+#                 if common_edge(coords[i], coords[j]):
+#                     joins.append((wall_ids[i], wall_ids[j]))
+
+#         # Merge overlapping groups efficiently
+#         groups = []
+#         for a, b in joins:
+#             added = False
+#             for g in groups:
+#                 if a in g or b in g:
+#                     g.update([a, b])
+#                     added = True
+#                     break
+#             if not added:
+#                 groups.append(set([a, b]))
+
+#         for g in groups:
+#             results.append({
+#                 "building_id": building_id,
+#                 "wall_id_list": tuple(g),
+#                 "new_id": f"combined_{new_id_counter}"
+#             })
+#             new_id_counter += 1
+
+#     to_join = pd.DataFrame(results)
+#     logger.info(f"{len(to_join)} wall groups can be joined.")
 #     return to_join
 
 
-# refactor
-def find_walls_to_join(df) -> pd.DataFrame:
-    """
-    Identify walls belonging to the same part that share an edge
-    and have nearly identical normals (angle < 1°).
 
-    df: pandas df or gdf, needs columns normal_vector_3d, surface_coordinates, wall_id
+def normalize_vector(v):
+    v = np.array(v, dtype=float)
+    norm = np.linalg.norm(v)
+    return list(v / norm) if norm != 0 else [0.0, 0.0, 0.0]
+
+
+def share_vertex(coords_a, coords_b) -> bool:
+    """Return True if the two coordinate lists share at least one identical vertex."""
+    set_a = {tuple(pt) for pt in coords_a}
+    set_b = {tuple(pt) for pt in coords_b}
+    return len(set_a.intersection(set_b)) > 0
+    
+
+def find_walls_to_join_common_vertex(df) -> pd.DataFrame:
+    """
+    Identify walls to join based on:
+      - belonging to the same building
+      - similar normals (angle difference < 3 degrees)
+      - at least one shared vertex
+
+    Required columns:
+      building_id
+      normal_vector_3d
+      surface_coordinates
+      wall_id
     """
     logger.info("Finding walls to join")
-    def normalize_vector(v):
-        v = np.array(v, dtype=float)
-        norm = np.linalg.norm(v)
-        return list(v / norm) if norm != 0 else [0.0, 0.0, 0.0]
+
     df = df.copy()
     df["normalized_nv3d"] = df["normal_vector_3d"].apply(normalize_vector)
-
-    grouped = df.groupby("building_id").agg(
-        coordinates=('surface_coordinates', list),
-        normals=('normalized_nv3d', list),
-        wall_ids=('wall_id', list)
-    ).reset_index()
 
     results = []
     new_id_counter = 0
 
-    for _, part in grouped.iterrows():
-        building_id = part.building_id
-        normals, coords, wall_ids = part.normals, part.coordinates, part.wall_ids
-        joins = []  # list of tuples of wall_ids to join
+    # Process one building at a time
+    for building_id, bdf in df.groupby("building_id"):
 
-        # Compare each unique pair once
-        for (i, j) in combinations(range(len(normals)), 2):
-            if get_angle_0_to_180(normals[i][:2], normals[j][:2]) < 1:
-                if common_edge(coords[i], coords[j]):
+        normals = bdf["normalized_nv3d"].tolist()
+        coords = bdf["surface_coordinates"].tolist()
+        wall_ids = bdf["wall_id"].tolist()
+
+        joins = []
+        wall_neighbors_map = {wid: set() for wid in wall_ids}
+        
+        # Compare each unique pair within this building
+        for i, j in combinations(range(len(wall_ids)), 2):
+
+            angle = get_angle_0_to_180(normals[i][:2], normals[j][:2])
+            if angle < 3:
+                if share_vertex(coords[i], coords[j]):
                     joins.append((wall_ids[i], wall_ids[j]))
-
-        # Merge overlapping groups efficiently
+            # if not same angle but share vertex, add to neighbor map for snapping later
+            else:
+                if share_vertex(coords[i], coords[j]):
+                    wall_neighbors_map[wall_ids[i]].add(wall_ids[j])
+                    wall_neighbors_map[wall_ids[j]].add(wall_ids[i])
+        # Merge overlapping join pairs into groups
         groups = []
         for a, b in joins:
             added = False
@@ -272,65 +225,34 @@ def find_walls_to_join(df) -> pd.DataFrame:
                     break
             if not added:
                 groups.append(set([a, b]))
-
+                
+        # Output groups for this building
         for g in groups:
+            group_set = set(g)
+            group_neighbors = set()
+            
+            for wid in group_set:
+                group_neighbors.update(wall_neighbors_map[wid])
+            # remove the wall the neighbour check is about from the map of neighbors
+            group_neighbors -= group_set
+
             results.append({
                 "building_id": building_id,
                 "wall_id_list": tuple(g),
-                "new_id": f"combined_{new_id_counter}"
+                "new_id": f"combined_{new_id_counter}",
+                "neighbors": tuple(group_neighbors)
             })
             new_id_counter += 1
 
     to_join = pd.DataFrame(results)
+
     logger.info(f"{len(to_join)} wall groups can be joined.")
     return to_join
 
 
-
-# def make_wall_2d(wall, v1, v2):
-#     '''
-#     Projects a 3D wall onto a 2D plane using two vectors.
-
-#     PARAMS:
-#     wall (list of 3d tuples): coordinate tuples (x, y, z) of wall which should be projected
-#     v1, v2 (3d vectors): both vectors used for projection
-
-#     RETURNS:
-#     wall_2d: A list of 2d tuples representing the projected wall
-#     '''
-#     wall_2d = []
-#     for point in wall:
-#         x_new = np.dot(v1, np.array(point))
-#         y_new = np.dot(v2, np.array(point))
-#         wall_2d.append((x_new, y_new))
-
-#     return wall_2d
-
-
-# def make_wall_3d(wall, v1, v2, origin_on_plane):
-#     '''
-#     Projects a 2D wall back to 3D plane using both vectors used for 3d-2d projection and the origin_on_plane
-
-#     PARAMS:
-#     wall (list of 2d tuples): coordinate tuples (x, y) of wall which should be projected
-#     v1, v2 (3d vectors): both vectors used for projection
-#     origin_on_plane (3d vector): vector pointing from the origin of the 3D space to the origin of the plane where the wall was projected onto
-
-#     RETURNS:
-#     wall_3d: A list of 3d tuples representing the projected wall
-#     '''
-#     wall_3d = []
-#     for point in wall:
-#         # for each point: sum up vector to origin on plane, both projecting vectors (3d) times the according coordinate from the 2d wall point to get back to the 3d coordinate
-#         point_3d = tuple(np.round(origin_on_plane + point[0] * v1 + point[1] * v2, 3))
-#         wall_3d.append(point_3d)
-
-#     return wall_3d
-
-# refactor
 def make_wall_2d(wall, v1, v2):
     """
-    Project a list of 3D points onto a 2D plane defined by v1, v2.
+    Project a list of 3D points (wall) onto a 2D plane defined by v1, v2.
     """
     wall = np.asarray(wall)
     x_new = wall @ v1
@@ -340,87 +262,14 @@ def make_wall_2d(wall, v1, v2):
 
 def make_wall_3d(wall_2d, v1, v2, origin_on_plane):
     """
-    Reproject 2D wall coordinates back into 3D using v1, v2, and plane origin.
+    Reproject 2D wall coordinates (wall) back into 3D using v1, v2, and plane origin.
     """
     wall_2d = np.asarray(wall_2d)
     wall_3d = origin_on_plane + np.outer(wall_2d[:, 0], v1) + np.outer(wall_2d[:, 1], v2)
     return [tuple(np.round(p, 3)) for p in wall_3d]
 
 
-# def get_joined_surface_of_walls(list_of_surfaces, normal):
-#     '''
-#     Joins multiple wall surfaces into a single surface in 3D space.
-
-#     This function takes a list of wall surfaces and a normal vector that defines the orientation of the plane
-#     in which the walls lie. It projects the walls onto a 2D plane, checks if they are coplanar, and then
-#     combines them into a single polygonal surface. The resulting surface is then transformed back into 3D space.
-
-#     PARAMS:
-#     * list_of_surfaces (list of list of 3d tuple): A list containing surfaces, where each surface is represented
-#         as a list of 3d tuples
-#     * normal (3d vector): A tuple representing the normal vector of the plane (a, b, c) to which the walls are aligned.
-
-#     RETURNS:
-#     * bool: True if the surfaces were successfully joined, False otherwise.
-#     * list: The joined surface in 3D space, or an empty list if joining failed.
-#     * float: The area of the joined surface, or 0 if joining failed.
-#     '''
-#     # project all walls in 2d
-#     a,b,c = normal
-#     d = - (a * list_of_surfaces[0][0][0] + b* list_of_surfaces[0][0][1] + c* list_of_surfaces[0][0][2])
-
-#     # short check whether the other walls also lie on the plane (not exhaustive, but should catch most of the cases. These should in the best case not happen though)
-#     for wall2 in list_of_surfaces:
-#         check_corner1 = a* wall2[0][0] + b*wall2[0][1] + c*wall2[0][2] + d  # should be 0 or close to 0
-#         check_corner2 = a* wall2[1][0] + b*wall2[1][1] + c*wall2[1][2] + d  # should be 0 or close to 0
-
-#         # if not, joining fails
-#         if np.abs(check_corner1) > 1 or np.abs(check_corner2) > 1:
-#             return False, [], 0
-
-#     # get two vectors, both orthonormal to the normal and to each other, to span the plane
-#     v1 = np.array(list_of_surfaces[0][0]) - np.array(list_of_surfaces[0][1])
-#     v1 = v1/np.linalg.norm(v1)
-#     v2 = np.cross(normal, v1)
-
-#     # project all walls to 2d
-#     list_of_polygons_2d = []
-#     for surface in list_of_surfaces:
-#         surface_2d = make_wall_2d(surface, v1, v2)
-#         list_of_polygons_2d.append(Polygon(surface_2d).buffer(0))
-
-#     # join
-#     joined_surface = shapely.union_all(list_of_polygons_2d)
-#     area = joined_surface.area
-
-#     # get back to 3d again, first need vector pointing from the origin of the 3D space to the origin of the plane where the wall was projected onto
-#     distance_origin_to_plane = (a * 0 + b * 0 + c * 0 + d) / np.sqrt(a**2 + b**2 + c**2)
-#     # Project the point onto the plane
-#     origin_on_plane = [0,0,0] - distance_origin_to_plane * np.array(normal)
-
-#     if isinstance(joined_surface, Polygon):
-#         # make all coordinates of polygon to list of coords again
-#         joined_surface_coords = list(joined_surface.exterior.coords)
-        
-#     elif isinstance(joined_surface, MultiPolygon):
-#         # try to make one polygon with buffering
-#         joined_surface_buffered = shapely.union_all([poly.buffer(0.03, join_style="mitre") for poly in joined_surface.geoms])
-#         if isinstance(joined_surface_buffered, Polygon):
-#             joined_surface_coords = list(joined_surface_buffered.exterior.coords)
-#         else:
-#             # not joining            
-#             return False, [], 0
-#     else:
-#         # Resulting shape is no polygon or multipolygon, not joining
-#         return False, [], 0
-    
-#     # back to 3d
-#     joined_surface_3d = make_wall_3d(joined_surface_coords, v1, v2, origin_on_plane)    
-
-#     return True, joined_surface_3d, area
-
-
-def get_joined_surface_of_walls(list_of_surfaces, normal, tol=1e-3):
+def get_joined_surface_of_walls(list_of_surfaces, normal, tol=0.15): #as normal vector is normalized, tol can be in the same unit as the coordinates, e.g. 0.1m, which should be sufficient to catch most of the cases where walls are not exactly coplanar but close enough to be joined
     """
     Join multiple wall surfaces into a single 3D polygon if coplanar.
     Returns (success, joined_surface_3d, area).
@@ -430,9 +279,10 @@ def get_joined_surface_of_walls(list_of_surfaces, normal, tol=1e-3):
     n = np.array(normal, dtype=float)
     n /= np.linalg.norm(n)
 
-    # Reference plane equation: a*x + b*y + c*z + d = 0
-    first_point = np.array(list_of_surfaces[0][0])
-    d = -np.dot(n, first_point)
+    # --- define reference plane using centroid of all points ---
+    all_points = np.vstack(list_of_surfaces)
+    centroid = all_points.mean(axis=0)
+    d = -np.dot(n, centroid)
 
     # Quick coplanarity check (use only first two corners per wall)
     for wall in list_of_surfaces:
@@ -500,55 +350,22 @@ def remove_double_coordinates(df, col_name):
     return df
 
 
+def snap_merged_wall_to_neighbors(merged_surface_coordinates, neighbor_surfaces_coordinates, tol=0.05):
+    """
+    Due to high tolerance on coplanarity check, merged walls may have vertices slightly off from neighbor walls.
+    To algin them after merging with their neighbours, snap vertices of merged wall to nearby neighbor walls within a tolerance.
+    merged_wall_coords: list of 3D tuples
+    neighbor_coords_list: list of lists of 3D tuples
+    """
 
-# def join_walls(df, to_join):
-#     before = len(df)
-#     print("[i] Joining walls.", before, "walls before") #1084062
-
-#     # go through rows in to_join and always save new wall as row in a new dataframe which is appended after the process
-#     joined = to_join.copy()
-#     indices_that_were_not_joined = []
-#     counter_not_joined = 0
-#     new_walls = pd.DataFrame(columns=["part_id", "wall_id", "surface_coordinates", "area", "normalized_nv3d"])
-#     df_temp = df.copy()
-#     for index, row in to_join.iterrows():
-#         if index % 10000 == 0:
-#             print(index, "/", len(to_join))
-#         # get a list of the coordinates and corresponding indices from each wall that should be joined
-#         list_of_wall_coordinates = list(df[df["wall_id"].isin(row["wall_id_list"])]["surface_coordinates"])
-#         list_of_indices = list(df[df["wall_id"].isin(row["wall_id_list"])].index)
-
-#         # get normal vec of one of the walls in list (in this case its just the first one)
-#         normal_vec = df[df["wall_id"].isin(row["wall_id_list"])]["normalized_nv3d"].values[0]
-
-#         # get joined surface
-#         successfull_join, joined_surface, area = get_joined_surface_of_walls(list_of_wall_coordinates, normal_vec)
-
-#         if successfull_join:
-#             new_walls.loc[index] = [row["part_id"], row["new_id"], joined_surface, area, normal_vec]
-
-#             # remove all walls from df that were just joined (to make sure the same wall will not be used again)
-#             df_temp = df_temp.drop(list_of_indices)
-#         else:
-#             # join not successfull: make sure that row is deleted from joined in the end
-#             indices_that_were_not_joined.append(index)
-#             counter_not_joined += 1
-            
-#     # delete duplicate coordinates
-#     new_walls = remove_double_coordinates(new_walls, "surface_coordinates")
-
-#     print("Start deleting old walls and concatenate new walls")
-
-#     df = pd.concat((df_temp, new_walls)).reset_index(drop = True)
-
-#     joined = joined.drop(indices_that_were_not_joined)
-
-#     print("Dataframes joined successfully")
-
-#     print(len(df), "after joining walls;", before - len(df), "walls less")
-#     print(counter_not_joined, "joins were not successful and therefor not performed")
-#     return df, joined
-
+    merged_pts = np.array(merged_surface_coordinates)
+    for i, pt in enumerate(merged_pts):
+        dists = np.linalg.norm(neighbor_surfaces_coordinates - pt, axis=1)
+        min_idx = np.argmin(dists)
+        if dists[min_idx] < tol:
+            merged_pts[i] = neighbor_surfaces_coordinates[min_idx]
+    merged_pts = [tuple(p) for p in merged_pts]
+    return merged_pts
 
 
 # refactor
@@ -559,6 +376,11 @@ def join_walls(df, to_join):
     Df need columns surface coordinates, normal_vector_3d
     to_join needs columns wall_id_list, building_id, new_id
     """
+    # check if there are any walls to join:
+    if to_join.empty:
+        logger.info("No walls to join.")
+        return df
+    
     df = df.copy()
     before = len(df)
     logger.info(f"Joining {before} walls...")
@@ -575,8 +397,8 @@ def join_walls(df, to_join):
             "area": 0,
             "normal_vector_3d": 0
         })
-    if not df.columns.sort_values().equals(new_df.columns.sort_values()):
-        print("[!] dataframes dont have same structure: orig cols:", df.columns, "new cols:", new_df.columns)
+    if not set(df.columns).issubset(new_df.columns):
+        print("[!] df is missing columns: orig cols:", df.columns, "should have cols:", new_df.columns)
         return None
     del new_df
     
@@ -584,7 +406,7 @@ def join_walls(df, to_join):
         wall_ids = row["wall_id_list"]
         building_id = row["building_id"]
         new_id = row["new_id"]
-        
+        neighbor_ids = row.get("neighbors", ())
 
         walls = [wall_map[w] for w in wall_ids if w in wall_map]
         if not walls:
@@ -594,9 +416,16 @@ def join_walls(df, to_join):
         normal_vec = walls[0]["normal_vector_3d"]
         ground_surface = walls[0].get("ground_surface", None)
 
-        success, joined_surface, area = get_joined_surface_of_walls(list_of_coords, normal_vec)
-        if not success:
+        was_success, joined_surface, area = get_joined_surface_of_walls(list_of_coords, normal_vec)
+        if not was_success:
             continue
+
+        # --- Snapping edges to old neighboring walls ---
+        for n_id in neighbor_ids:
+            if n_id not in wall_map:
+                continue
+            neighbor_wall = wall_map[n_id]["surface_coordinates"]
+            joined_surface = snap_merged_wall_to_neighbors(joined_surface, neighbor_wall, tol=0.2)
 
         new_walls.append({
             "building_id": building_id,

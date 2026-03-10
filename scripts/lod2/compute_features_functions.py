@@ -7,7 +7,7 @@ import os
 import logging
 logger = logging.getLogger(__name__)
 
-from scripts.lod2.compute_features_wall_join import make_wall_2d, make_wall_3d, get_angle_0_to_180
+from scripts.lod2.compute_features_wall_join import get_angle_0_to_180
 import scripts.config as CONF
 
 
@@ -38,9 +38,10 @@ def read_data(df1_filename, df2_filename):
         df1_parts[["building_id", "ground_surface"]],
         on="building_id",
         how="left"
-    )
-    df2_walls_gs_gdf = make_geodataframe(df2_walls_with_gs.iloc[[1]], "ground_surface")
+    ).dropna(subset=["ground_surface"])
     
+    print(df2_walls_with_gs[df2_walls_with_gs['ground_surface'].apply(lambda x: isinstance(x, float))]['ground_surface'])    
+    df2_walls_gs_gdf = make_geodataframe(df2_walls_with_gs, "ground_surface")
     return df2_walls_gs_gdf #df1_parts, df2_walls
 
 
@@ -55,7 +56,7 @@ def calculate_wall_area(df, min_wall_area_thresh, filter_walls):
     Returns:
         df: pd.df with new column area
     """
-    logger.info(f"Calculating wall area with min_wall_area_thresh={min_wall_area_thresh}, filter_walls={filter_walls}")
+    logger.info(f"Calculating wall area of {len(df)} walls, with min_wall_area_thresh={min_wall_area_thresh}sqm, filter_walls={filter_walls}")
     df = df.copy()
     areas = []
     # for each wall, extract coordinates and use cross product method to calculate area with 3d coordinates
@@ -82,7 +83,7 @@ def calculate_wall_area(df, min_wall_area_thresh, filter_walls):
         before = len(df)
         removed = df[df["area"] <= min_wall_area_thresh]["wall_id"].tolist()
         df = df[df["area"] > min_wall_area_thresh].reset_index(drop = True)
-        logger.info(f"{len(df)}, after deleting walls with area below {min_wall_area_thresh}; {before - len(df)} walls removed")
+        logger.info(f"{len(df)} wall(s) left, after deleting walls with area below {min_wall_area_thresh}; {before - len(df)} walls removed")
         if removed:
             logger.debug("Filtered-out wall_ids:\n"+ "\n".join(map(str, removed)))
     return df
@@ -329,20 +330,7 @@ def calculate_wall_orientation(wall_points:list, normal_vector_3d:np.array, show
     return angle_deg, orientation
 
 
-#chat gpt improvement
-# # Adjust angle so that 0° = North, 90° = East
-#     if cross < 0:  # clockwise
-#         orientation = _angle_to_compass(angle_deg)
-#     else:  # counter-clockwise
-#         orientation = _angle_to_compass(-angle_deg)
 
-# # --- 2. Compass mapping helper ---
-# def _angle_to_compass(angle: float) -> str:
-#     """Map a signed angle to one of the 8 cardinal directions."""
-#     angle = (angle + 360) % 360
-#     directions = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW']
-#     idx = int((angle + 22.5) // 45) % 8
-#     return directions[idx]
 
 
 def get_wall_orientation(df):
@@ -402,52 +390,6 @@ def get_sorted_bounding_box(bounding_box, normal, ground_surface_midpt):
     return bounding_box_new
 
 
-# OLD replace by chat GPT function below
-# def get_bounding_box_from_single_surface(wall_id, surface, normal_vector_3d, ground_surface_midpt):
-#     '''
-#     Computes the 3D bounding box of a single surface defined by its coordinates. It projects the surface onto a 2D plane, calculates the 2D bounding box, and then transforms this bounding box back into 3D space.
-
-#     PARAMS:
-#     * surface (list of tuple): A list of tuples representing the coordinates of the surface in 3D space.
-#     * normal (tuple): A tuple representing the normal vector (a, b, c) of the plane in which the surface is located.
-
-#     RETURNS:
-#     * list: A list of tuples representing the coordinates of the 3D bounding box of the surface, ordered such that it starts with the upper right corner, then upper left, lower left, and lower right (as viewed from the exterior of the wall).
-#     '''
-#     # get plane equation ax+by+cz+d=0 for plane in which wall is
-#     try:
-#         normalized_normal = normal_vector_3d/np.linalg.norm(normal_vector_3d)
-#         a,b,c = normalized_normal
-#         d = - (a * surface[0][0] + b* surface[0][1] + c* surface[0][2])
-
-#         # get two vectors, both orthonormal to the normal and to each other, to span the plane
-#         v1 = np.array(surface[0]) - np.array(surface[1])
-#         v1 = v1/np.linalg.norm(v1)
-#         v2 = np.cross(normalized_normal, v1)                              # FIX: use unit normal here
-#         #v2 = v2/np.linalg.norm(v2)                                # FIX: normalize v2
-
-#         # make a 2d polygon out of surface with the help of v1 and v2 in the plane
-#         surface_2d = Polygon(make_wall_2d(surface, v1, v2)).buffer(0)
-        
-#         # get 2d bounding box with shapely (3d does not work) and export coordinates
-#         if surface_2d.is_empty or surface_2d.area == 0:
-#             return []
-#         bounding_box = Polygon(surface_2d).oriented_envelope
-
-#         # get back to 3d again, first need origin in plane described by a,b,c,d and then return
-#         distance_origin_to_plane = (a * 0 + b * 0 + c * 0 + d) / np.sqrt(a**2 + b**2 + c**2)
-#         # Project the point onto the plane
-#         origin_on_plane = np.array([0,0,0], dtype=float) - distance_origin_to_plane * normalized_normal
-    
-#         bounding_box_3d = make_wall_3d(list(bounding_box.exterior.coords), v1, v2, origin_on_plane)
-
-#         # sort bounding box such that it starts with upper right corner, then upper left (seen from exterior of wall), then lower left, lower right
-#         bounding_box_3d = get_sorted_bounding_box(bounding_box_3d, tuple(normalized_normal), ground_surface_midpt)
-            
-#         return bounding_box_3d
-#     except Exception as e:
-#         print(wall_id, e)
-#         return []
 
 
 def get_bounding_box_from_single_surface(wall_id, surface, normal_vector_3d, ground_surface_midpt):

@@ -1,6 +1,8 @@
 # config file to configure paths, outcommented paths are not included in paper version
 
 import os
+from pathlib import Path
+
 
 def validate_path(path: str) -> str:
     if not os.path.exists(path):
@@ -15,7 +17,8 @@ def validate_or_create(path: str) -> str:
     return path
 
 
-BASE__FOLDER = validate_path("") #BASE FOLDER containing scripts/, daten/, imgs/, models/, dataframes/, log/
+#BASE FOLDER containing scripts/, daten/, imgs/, models/, dataframes/, log/
+BASE__FOLDER = Path(__file__).resolve().parents[1]
 
 
 #------------

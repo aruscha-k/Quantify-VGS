@@ -569,7 +569,6 @@ def run_pipeline(gml_dir: Path, output_dir: Path) -> None:
     df1_parts_all.to_pickle(df1_path)
     df2_walls_all.to_pickle(df2_path)
     df3_roofs_all.to_pickle(df3_path)
-    
     #logging.info("Number of items in all_building.pkl: %d", len(all_building_df))
     logging.info("Saved df1_parts to %s", df1_path)
     logging.info("Saved df2_walls to %s", df2_path)

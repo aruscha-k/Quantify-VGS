@@ -6,7 +6,7 @@ from datetime import datetime
 import scripts.config as CONF
 
 from scripts.lod2.compute_features_functions import *
-from scripts.lod2.compute_features_wall_join import find_walls_to_join, join_walls
+from scripts.lod2.compute_features_wall_join import find_walls_to_join_common_vertex, join_walls
 
 
 # ------
@@ -35,7 +35,6 @@ save_steps = True
 def main():
     leverkusen_gdf = read_original_lod_data(filepath=os.path.join(CONF.dataframes_dir, 'df1_parts.pkl'))
     df2_walls_gs_gdf = read_data(df1_filename="df1_parts.pkl", df2_filename="df2_walls_00.pkl")
-
     # 1. compute area
     df2_walls_gs_gdf = calculate_wall_area(df2_walls_gs_gdf, min_wall_area_thresh=min_wall_area_thresh, filter_walls=filter_walls)
     
@@ -44,7 +43,7 @@ def main():
     df2_walls_gs_gdf = check_verticality_of_walls(df2_walls_gs_gdf, filter_walls)
 
     # 3. find walls to join
-    to_join = find_walls_to_join(df2_walls_gs_gdf)
+    to_join = find_walls_to_join_common_vertex(df2_walls_gs_gdf)
     
     if save_steps:
         to_join.to_pickle(os.path.join(CONF.dataframes_dir, "to_join.pkl"))
