@@ -5,7 +5,7 @@ The workflow to extract images cannot be shared (see paper for explaination). If
 
 The data is described below.
 
-To run any file of this repo, navigate to the folder containing the folder _scripts_, and call like python -m scripts.<subfolder>.<script_to_run> (e.g., python -m scripts.lod2.01_read_lod_data)
+To run any file of this repo, navigate into the folder containing the folder _scripts_, and call like *python -m scripts.subfolder.script_to_run* (e.g., python -m scripts.lod2.01_read_lod_data)
 
 # Data needed:
 
