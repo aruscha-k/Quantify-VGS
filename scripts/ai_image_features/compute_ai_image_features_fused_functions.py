@@ -3,9 +3,10 @@ from sklearn.cluster import DBSCAN
 from collections import defaultdict
 import os
 import pandas as pd
+import traceback
 
 import scripts.config as CONF
-from scripts.ai_image_features.compute_ai_image_features_fused_functions import calculate_real_world_coordinates
+from scripts.ai_image_features.compute_ai_image_features_fused_coordinate_conversion import calculate_real_world_coordinates
 
 def get_normalized_normal_vector_3D(wall_id, df2_walls_gs_gdf):
     """from existing df2 for walls get the normal vector
@@ -66,9 +67,9 @@ def find_detections(wall_id, df5, normalized_normal_3d, detections_dir, src):
         try:
             image_wall_id = row['ID']
             file_name = f"{row['building_id']}_{row['ID']}_rectified"
-            # detections = pd.read_pickle(os.path.join(detections_dir, file_name + ".pkl")) #FIXME!!!!!! detections from single files are often corrupted use all detections.pkl instead more efficiently
-            detections = pd.read_pickle(os.path.join(detections_dir, "all_detections.pkl"))
-            detections = detections.loc[detections['image']== file_name+".jpg"]
+            detections = pd.read_pickle(os.path.join(detections_dir, file_name + ".pkl")) 
+            #detections = pd.read_pickle(os.path.join(detections_dir, "all_detections.pkl"))
+            #detections = detections.loc[detections['image']== file_name+".jpg"]
             detections_with_world_coords, H_rect_to_wall2D, origin, x_axis, y_axis = calculate_real_world_coordinates(detections, row['rectified_outside_surface_in_image'], row['surface_coordinates'], normalized_normal_3d)
             homographies[image_wall_id] = {'H_rect_to_wall2D':H_rect_to_wall2D,
                                     'origin': origin, 
@@ -81,6 +82,7 @@ def find_detections(wall_id, df5, normalized_normal_3d, detections_dir, src):
 
         except Exception as e:
             print(f"Error processing wall ID {file_name}: {e}")
+            #traceback.print_exc()
             homographies[image_wall_id] = {}
             continue
     return found_detections, homographies

@@ -54,13 +54,13 @@ lod2_data_dir = validate_path(os.path.join(data_dir, "lod2_data/"))
 #------------
 image_data_dir = validate_path(os.path.join(BASE__FOLDER, "imgs/"))
 # out oblique cutouts
-output_dst_oblique_dir = os.path.join(image_data_dir, "oblique-walls/") # created during
-# output_oblique_detections_dir = os.path.join(image_data_dir, "detections_yolo11_train2/") # downloaded from cluster
+#output_dst_oblique_dir = os.path.join(image_data_dir, "oblique-walls/") # created during
+output_oblique_detections_dir = os.path.join(image_data_dir, "detections_oblique/") # downloaded from cluster
 
 # street view
-image_data_dir_surface = validate_path(os.path.join(image_data_dir,'buildings_from_surface/'))
-output_dest_streetview_dir = os.path.join(image_data_dir, "streetviews") #created during
-# output_streetview_detections_dir = os.path.join(image_data_dir, "streetview_detections_detectron/") # downloaded from cluster
+#image_data_dir_surface = validate_path(os.path.join(image_data_dir,'buildings_from_surface/'))
+#output_dest_streetview_dir = os.path.join(image_data_dir, "streetviews") #created during
+output_streetview_detections_dir = os.path.join(image_data_dir, "detections_streetview/") # downloaded from cluster
 
 # ---------------
 # dataframes

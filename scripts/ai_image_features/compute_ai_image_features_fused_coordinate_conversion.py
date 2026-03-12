@@ -1,7 +1,7 @@
 import numpy as np
 import cv2
 import pandas as pd
-
+from shapely.geometry import Polygon
 
 # -------------
 # World from px  (Rectified)
@@ -69,7 +69,11 @@ def calculate_real_world_coordinates(detections: pd.DataFrame, rectified_surface
     """
     detections = detections.copy()
     rect_px = np.array(rectified_surface_px)
-    wall_points = np.array(wall_surface_3D)
+    if isinstance(wall_surface_3D, Polygon):
+        wall_points = np.array(wall_surface_3D.exterior.coords)
+    else:
+        wall_points = np.array(wall_surface_3D)
+    
     H_rect_to_wall2D, origin, x_axis, y_axis = compute_rect_to_wall_homography(rect_px, wall_points, normal_vector_3D)
 
     all_real_world = []

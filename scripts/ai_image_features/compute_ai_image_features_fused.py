@@ -10,7 +10,7 @@ import scripts.config as CONF
 from scripts.ai_image_features.compute_ai_image_features_fused_coordinate_conversion import *
 from scripts.ai_image_features.compute_ai_image_features_fused_functions import *
 from scripts.ai_image_features.compute_ai_image_features_functions import *
-from scripts.ai_image_features.clean_house_nohouse import run_house_nohouse_inference
+#from scripts.ai_image_features.clean_house_nohouse import run_house_nohouse_inference
 
 # ------
 # logger
@@ -150,22 +150,35 @@ def run_fusion(df5, det_pool, wall_homographies, common_wall_ids, eps, predictio
 def main(run_oblique: bool = True, run_streetview: bool = False):
     CONFIDENCE_THRESHOLD = 0.7
 
-    df5_oblique = pd.read_pickle(CONF.df5_proj_fp)
-    df5_streetview = pd.read_pickle(CONF.df5_streetview_fp)
-    df2_walls_gs_gdf = pd.read_pickle(CONF.dataframes_dir + "/df2_walls_02_all_lod_factors.pkl") #needed for wall normal
+    # uncomment if you're not running test version
+    #df5_oblique = pd.read_pickle(CONF.df5_proj_fp)
+    #df5_streetview = pd.read_pickle(CONF.df5_streetview_fp)
+    #common_wall_ids = get_all_wall_ids(df5_streetview, df5_oblique) 
+    #df2_walls_gs_gdf = pd.read_pickle(CONF.dataframes_dir + "/df2_walls_02_all_lod_factors.pkl") #needed for wall normal
 
-    common_wall_ids = get_all_wall_ids(df5_streetview, df5_oblique)
-    det_pool, wall_homographies = create_detection_pool_and_homographies(common_wall_ids, df2_walls_gs_gdf, df5_streetview, df5_oblique)
+
+    # ------ for test version ------
+    # run this code as example with 5 walls that example data is provided for else uncomment other lines
+    df5_oblique = pd.read_pickle(CONF.dataframes_dir + "df5_oblique_afterhouse_exmp.pkl")
+    df5_streetview = pd.read_pickle(CONF.dataframes_dir + "df5_streetview_afterhouse_exmp.pkl") 
+    common_wall_ids_exmp = ['ID_4bb7cc11-53ad-483b-9312-17bb9be0b548',
+                        'ID_7b36fa22-6491-4fd0-bda0-fbf080445419',
+                        'ID_8a5e2ae9-ebff-4ca5-8351-d94737df4e11',
+                        'ID_89539e11-04a5-443f-93ea-2aefcb18cf2d']
+    df2_walls_gs_gdf = pd.read_pickle(CONF.dataframes_dir + "/df2_walls_02_all_lod_factors_exmp.pkl") #needed for wall normal
+    # ---------------------------------
+
+    det_pool, wall_homographies = create_detection_pool_and_homographies(common_wall_ids_exmp, df2_walls_gs_gdf, df5_streetview, df5_oblique)
     # ----------
     # obliques
     # ----------
     if run_oblique:
-        
-        df5_oblique = run_house_nohouse_inference(df5_oblique, CONF.output_dst_oblique_dir, CONF.oblique_house_nohouse_model, CONFIDENCE_THRESHOLD)
-        df5_oblique.to_pickle(CONF.dataframes_dir + "df5_oblique_afterhouse.pkl")
-        # df5_projections = pd.read_pickle(CONF.dataframes_dir + "df5_oblique_afterhouse.pkl")
+        logger.info("Starting fusion for oblique images...")
+        #df5_oblique = run_house_nohouse_inference(df5_oblique, CONF.output_dst_oblique_dir, CONF.oblique_house_nohouse_model, CONFIDENCE_THRESHOLD)
+        #df5_oblique.to_pickle(CONF.dataframes_dir + "df5_oblique_afterhouse.pkl")
+        #df5_oblique = pd.read_pickle(CONF.dataframes_dir + "df5_oblique_afterhouse.pkl")
 
-        df5_oblique_fused = run_fusion(df5_oblique, det_pool, wall_homographies, common_wall_ids, eps=45, prediction_confidence_threshold = 0.75, show_plot = False, img_file_dir=CONF.output_dst_oblique_dir)
+        df5_oblique_fused = run_fusion(df5_oblique, det_pool, wall_homographies, common_wall_ids_exmp, eps=45, prediction_confidence_threshold = 0.75, show_plot = False, img_file_dir="")
         df5_oblique_fused.to_pickle(CONF.dataframes_dir + "df5_oblique_fused.pkl")
 
         # df5_projections_with_features = pd.read_pickle(CONF.dataframes_dir + "df5_oblique_fused.pkl")
@@ -176,11 +189,12 @@ def main(run_oblique: bool = True, run_streetview: bool = False):
     # street views
     # ----------
     if run_streetview:
-        df5_streetviews = run_house_nohouse_inference(df5_streetviews, CONF.output_dest_streetview_dir, CONF.streetview_house_no_house_model, CONFIDENCE_THRESHOLD)
-        df5_streetviews.to_pickle(CONF.dataframes_dir + "df5_streetview_afterhouse.pkl")
-        # df5_streetviews = pd.read_pickle(CONF.dataframes_dir + "df5_streetview_afterhouse.pkl") 
+        logger.info("Starting fusion for street view images...")
+        #df5_streetview = run_house_nohouse_inference(df5_streetviews, CONF.output_dest_streetview_dir, CONF.streetview_house_no_house_model, CONFIDENCE_THRESHOLD)
+        #df5_streetview.to_pickle(CONF.dataframes_dir + "df5_streetview_afterhouse.pkl")
+        #df5_streetview = pd.read_pickle(CONF.dataframes_dir + "df5_streetview_afterhouse_10.pkl") #optional keep outcommented if testversion
 
-        df5_streetview_fused = run_fusion(df5_streetview, det_pool, wall_homographies, common_wall_ids, eps=30, prediction_confidence_threshold = 0.7, show_plot = False, img_file_dir=CONF.output_dest_streetview_dir)
+        df5_streetview_fused = run_fusion(df5_streetview, det_pool, wall_homographies, common_wall_ids_exmp, eps=30, prediction_confidence_threshold = 0.7, show_plot = False, img_file_dir="")
         df5_streetview_fused.to_pickle(CONF.dataframes_dir + "df5_streetview_fused.pkl") 
 
         # df5_streetviews_with_features = pd.read_pickle(CONF.dataframes_dir + "df5_streetview_fused.pkl")

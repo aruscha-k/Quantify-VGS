@@ -73,11 +73,14 @@ Save detections image-wise as pd.DataFrame as pkl.
 
 
 ## 4. Image fusion, calculation of wwr and swa & Index Calculation
-Run _compute_ai_image_features_individually.py_ to compute features without fusion approach and _compute_ai_image_features_fused.py_ to compute features with fusion approach.
+Run _compute_ai_image_features_fused.py_ to compute features with fusion approach.
 
 Within this code, a check runs if an image shows a valid house/wall or not (code for this is in clean_house_nohouse.py). The model cannot be shared due to licensing restrictions. You can disable this check by commenting it out, which will influence the results. To train a model for this clean up step, divide images into "good and bad" and train a simple model for few epochs. 
 
 The resulting df contains the following columns which can be used for factor calculation:
 $columns = ['ID', 'wall_id', 'building\_id', 'FILENAME', 'wwr', 'swa', 'area_m2', 'fusion\_source']$
-
 For index calculation run _calculate_potential_index.ipynb_
+
+
+For test reasons, example data for 4 walls has been uploaded to dataframes folder. You can run _compute_ai_image_features_fused.py_ as is with these and the run _calculate_potential_index.ipynb_ to calculate the index (only as an example, since it doesn't make sense with 4 walls)
+
